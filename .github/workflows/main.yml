@@ -1,25 +1,36 @@
 name: Release
 on:
   push:
+    #根据branch或者tags来触发
+    branches:
+      -main
+      
     tags:
       - "v*"
 
 jobs:
   build:
+    #构建的系统，ubuntu windows macos
     runs-on: ubuntu-latest
+    #构建权限
     permissions:
       contents: write
     steps:
+      #拉取仓库代码
       - uses: actions/checkout@v3
+      #设置java运行环境，temurin是开源jdk,可以设置为1.8
       - uses: actions/setup-java@v3
         with:
           distribution: temurin
           java-version: 11
+      #设置gradle环境，打包命令
       - uses: gradle/gradle-build-action@v2
         with:
           gradle-version: current
           arguments: assembleRelease
+      #签名apk
       - uses: r0adkll/sign-android-release@v1
+        name: Sign app APK
         id: sign_app
         with:
           releaseDirectory: app/build/outputs/apk/release
@@ -27,9 +38,15 @@ jobs:
           alias: ${{ secrets.ALIAS }}
           keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
           keyPassword: ${{ secrets.KEY_PASSWORD }}
-      - run: mv ${{steps.sign_app.outputs.signedReleaseFile}} LittleGooseOffice_$GITHUB_REF_NAME.apk
+      #重命名apk
+      # GITHUB_REF_NAME是“触发workflow的分支或tag名称”
+      - run: mv ${{steps.sign_app.outputs.signedReleaseFile}} xilin_test_$GITHUB_REF_NAME.apk
+      #发布
       - uses: ncipollo/release-action@v1
         with:
+          #要包含到Release Assets中的文件
           artifacts: "*.apk"
+          #会使用一个临时的token来创建Release
           token: ${{ github.token }}
+          #自动生成一些变化列表之类的内容
           generateReleaseNotes: true
